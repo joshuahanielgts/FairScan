@@ -252,6 +252,12 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
           </div>
         </div>
       </div>
+
+      <ExportPanel
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        result={r}
+      />
     </div>
   );
 }
