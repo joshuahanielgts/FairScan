@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
-import { StepIndicator } from "@/components/StepIndicator";
+import { ScanStepIndicator } from "@/components/ScanStepIndicator";
 import { runScan } from "@/lib/scanOrchestrator";
 import { emailReport } from "@/lib/emailReport";
 import type { ScanProgress, ScanResult, ColumnMeta } from "@/types";
@@ -20,7 +20,6 @@ const STEPS = [
   "Computing fairness metrics...",
   "Running intersectional analysis...",
   "Generating Gemini explanations...",
-  "Complete"
 ];
 
 export function ScanningView({ file, columnOverrides, outcomeColumn, summaryEmailOpts, onComplete, onBack }: ScanningViewProps) {
@@ -30,7 +29,7 @@ export function ScanningView({ file, columnOverrides, outcomeColumn, summaryEmai
     percentage: 0,
   });
   
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | React.ReactNode | null>(null);
 
   useEffect(() => {
     runScan(file, columnOverrides, outcomeColumn, (p) => {
@@ -49,6 +48,25 @@ export function ScanningView({ file, columnOverrides, outcomeColumn, summaryEmai
       .catch((err) => {
         if (err.message === 'RATE_LIMITED') {
           setError('Gemini API rate limit reached. Please wait 60 seconds and try again.');
+        } else if (err.message.includes('GEMINI_403')) {
+          setError(
+            <div className="text-left space-y-4">
+              <p>Gemini API key error (403).</p>
+              <div className="bg-surface-2 p-4 rounded-lg border border-border">
+                <p className="font-medium mb-2">Fix Steps:</p>
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">aistudio.google.com/app/apikey</a></li>
+                  <li>Make sure your key is active</li>
+                  <li>Make sure "Generative Language API" is enabled in Google Cloud Console</li>
+                  <li>Copy the key and paste it in <code className="bg-surface-3 px-1 rounded">.env.local</code> as:</li>
+                </ol>
+                <pre className="mt-4 bg-black text-white p-3 rounded text-xs overflow-x-auto">
+                  VITE_GEMINI_API_KEY=your_key_here
+                </pre>
+                <p className="mt-4 text-xs">5. Restart the dev server (Ctrl+C then npm run dev)</p>
+              </div>
+            </div>
+          );
         } else {
           setError(`Scan failed: ${err.message}`);
         }
@@ -122,7 +140,7 @@ export function ScanningView({ file, columnOverrides, outcomeColumn, summaryEmai
               else if (i === progress.step) status = "active";
 
               return (
-                <StepIndicator
+                <ScanStepIndicator
                   key={stepLabel}
                   label={stepLabel}
                   status={status}

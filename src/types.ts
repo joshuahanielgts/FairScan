@@ -1,147 +1,102 @@
-export type Severity = "critical" | "high" | "medium" | "low";
-
-export type ColumnRole = "sensitive" | "outcome" | "ignore";
-
-export type DataType = "Numeric" | "Categorical";
-
-export interface DatasetColumn {
-  name: string;
-  sampleValues: string;
-  dataType: DataType;
-  role: ColumnRole;
-  autoDetected: boolean;
-}
-
-export interface BiasSlice {
-  id: string;
-  slice: string;
-  metric: string;
-  value: number;
-  threshold: string;
-  severity: Severity;
-  intersectional: boolean;
-}
-
-export interface MetricSummary {
-  label: string;
-  value: number;
-  severity: Severity;
-}
-
-export interface Explanation {
-  id: string;
-  sliceId: string;
-  sliceLabel: string;
-  biasType: string;
-  text: string;
-}
-
-export interface FixRecommendation {
-  id: string;
-  number: string;
-  title: string;
-  body: string;
-  tags: { label: string; tone: "blue" | "green" | "amber" | "red" }[];
-}
-
-export interface ScanResult {
-  fileName: string;
-  rowCount: number;
-  columnCount: number;
-  fileSize: string;
-  sensitiveAttributeCount: number;
-  fairScanScore: number;
-  metrics: MetricSummary[];
-  severityCounts: Record<Severity, number>;
-  slices: BiasSlice[];
-  explanations: Explanation[];
-  fixes: FixRecommendation[];
-  impactStory: string;
-}
+// ─── View State ────────────────────────────────────────────────────────────
 
 export type AppView =
   | "landing"
   | "upload"
   | "configure"
   | "scanning"
-  | "results";
+  | "results"
+  | "text-results";
 
-// Raw parsed CSV row — key is column name, value is string
+export type Severity = "critical" | "high" | "medium" | "low";
+export type ColumnRole = "sensitive" | "outcome" | "ignore";
+export type DataType = "numeric" | "categorical" | "text" | "unknown";
+
+// ─── CSV / Column types ─────────────────────────────────────────────────────
+
 export interface CSVRow {
   [key: string]: string;
 }
 
-// Column metadata after parsing
 export interface ColumnMeta {
   name: string;
-  type: 'numeric' | 'categorical' | 'text' | 'unknown';
-  uniqueValues: string[];       // up to 20 unique values
-  sampleValues: string[];       // first 5 non-null values
+  type: DataType;
+  uniqueValues: string[];
+  sampleValues: string[];
   nullCount: number;
   isAutoDetectedSensitive: boolean;
-  role: 'sensitive' | 'outcome' | 'ignore';
+  role: ColumnRole;
 }
 
-// A single group within a sensitive column
+// ─── Fairness Metric types ──────────────────────────────────────────────────
+
+export type MetricName =
+  | "disparate_impact"
+  | "demographic_parity_gap"
+  | "equalized_odds_gap"
+  | "equal_opportunity_gap"
+  | "representation_imbalance"
+  | "label_skew";
+
+export interface FairnessMetric {
+  metricName: MetricName;
+  value: number;
+  threshold: number;
+  passed: boolean;
+  groupA: string;
+  groupB: string;
+}
+
 export interface GroupStats {
-  groupName: string;            // e.g. "Female", "Age < 25"
+  groupName: string;
   count: number;
-  positiveCount: number;        // rows where outcome = positive
-  positiveRate: number;         // positiveCount / count
-  truePositiveRate?: number;    // if labels available
+  positiveCount: number;
+  positiveRate: number;
+  truePositiveRate?: number;
   falsePositiveRate?: number;
   falseNegativeRate?: number;
 }
 
-// One fairness metric result for a slice
-export interface FairnessMetric {
-  metricName: 'disparate_impact' | 'demographic_parity_gap' |
-              'equalized_odds_gap' | 'equal_opportunity_gap' |
-              'representation_imbalance' | 'label_skew';
-  value: number;
-  threshold: number;            // the threshold it's compared against
-  passed: boolean;
-  groupA: string;
-  groupB: string;               // reference group (majority or "others")
+// ─── Fix Recommendation ─────────────────────────────────────────────────────
+
+export interface FixRecommendation {
+  title: string;
+  description: string;
+  tags: string[];
+  type: "preprocessing" | "postprocessing" | "feature_engineering" | "prompt_engineering";
 }
 
-// One flagged slice (a group or intersection that has bias)
+// ─── Bias Slice ─────────────────────────────────────────────────────────────
+
 export interface BiasSlice {
-  id: string;                   // unique, e.g. "sex_Female"
-  attributeNames: string[];     // e.g. ["sex"] or ["sex", "age"] for intersectional
-  groupLabel: string;           // e.g. "Female" or "Female ∩ Age < 25"
+  id: string;
+  attributeNames: string[];
+  groupLabel: string;
   isIntersectional: boolean;
   metrics: FairnessMetric[];
-  worstMetric: FairnessMetric;  // the metric with the worst violation
-  severity: 'critical' | 'high' | 'medium' | 'low';
+  worstMetric: FairnessMetric;
+  severity: Severity;
   groupStats: GroupStats;
-  // Filled by Gemini:
-  biasType?: 'representation' | 'measurement' | 'evaluation' | 'deployment' | 'intersectional';
+  // Filled by Gemini after scan:
+  biasType?: "representation" | "measurement" | "evaluation" | "deployment" | "intersectional";
   explanation?: string;
   fixes?: FixRecommendation[];
   impactStory?: string;
 }
 
-// A fix recommendation
-export interface FixRecommendation {
-  title: string;
-  description: string;
-  tags: string[];               // e.g. ["Pre-processing", "Data-level"]
-  type: 'preprocessing' | 'postprocessing' | 'feature_engineering' | 'prompt_engineering';
-}
+// ─── Scan Result ────────────────────────────────────────────────────────────
 
-// The full result of a scan
 export interface ScanResult {
-  id: string;                   // uuid
+  id: string;
   filename: string;
   rowCount: number;
   columnCount: number;
   sensitiveColumns: string[];
   outcomeColumn: string;
-  positiveOutcomeLabel: string; // e.g. ">50K" or "1"
+  positiveOutcomeLabel: string;
   scannedAt: Date;
-  fairscanScore: number;        // 0–100
-  riskLevel: 'critical' | 'high' | 'medium' | 'low';
+  fairscanScore: number;
+  riskLevel: Severity;
   slices: BiasSlice[];
   overallStats: {
     criticalCount: number;
@@ -154,20 +109,33 @@ export interface ScanResult {
   scanDurationMs: number;
 }
 
-// Text mode result (no CSV)
+// ─── Scan Progress ──────────────────────────────────────────────────────────
+
+export interface ScanProgress {
+  step: number;       // 0–4
+  stepLabel: string;
+  percentage: number;
+}
+
+// ─── Text Mode ──────────────────────────────────────────────────────────────
+
 export interface TextModeResult {
   id: string;
   modelDescription: string;
   identifiedSensitiveFeatures: string[];
   proxyFeatures: { feature: string; proxiesFor: string; risk: string }[];
   biasTypeMap: { type: string; description: string }[];
-  overallRisk: 'critical' | 'high' | 'medium' | 'low';
+  overallRisk: Severity;
   recommendations: FixRecommendation[];
 }
 
-// Scan progress for the scanning view
-export interface ScanProgress {
-  step: number;                 // 0–4
-  stepLabel: string;
-  percentage: number;
+// ─── DatasetColumn (used by ConfigureView table) ────────────────────────────
+// Bridge type: maps ColumnMeta to the table row shape ConfigureView renders
+
+export interface DatasetColumn {
+  name: string;
+  sampleValues: string;   // joined string for display, e.g. "39, 50, 38"
+  dataType: DataType;
+  role: ColumnRole;
+  autoDetected: boolean;
 }

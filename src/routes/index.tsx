@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [view, setView] = useState<AppView | "textResults">("landing");
+  const [view, setView] = useState<AppView>("landing");
   
   const [datasetContext, setDatasetContext] = useState<{ file: File | null; rows: CSVRow[]; columns: ColumnMeta[]; detectedOutcome: string | null } | null>(null);
   const [columnOverrides, setColumnOverrides] = useState<{ name: string; role: ColumnMeta['role'] }[]>([]);
@@ -52,7 +52,7 @@ function Index() {
             }}
             onContinueTextMode={(res) => {
               setTextModeResult(res);
-              setView("textResults");
+              setView("text-results");
             }}
           />
         )}
@@ -83,7 +83,7 @@ function Index() {
         {view === "results" && scanResult && (
           <ResultsView scanResult={scanResult} onNewAudit={handleNewAudit} />
         )}
-        {view === "textResults" && textModeResult && (
+        {view === "text-results" && textModeResult && (
           <TextModeResultsView result={textModeResult} onNewAudit={handleNewAudit} />
         )}
       </div>

@@ -5,7 +5,6 @@ import type { ColumnRole, ColumnMeta } from "@/types";
 interface ConfigureViewProps {
   columns: ColumnMeta[];
   onBack: () => void;
-  onBack: () => void;
   onRunScan: (overrides: { name: string; role: ColumnRole }[], wantsEmail: boolean, emailInput: string) => void;
 }
 

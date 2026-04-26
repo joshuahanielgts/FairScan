@@ -13,7 +13,11 @@ interface StepIndicatorProps {
 }
 
 export function StepIndicator({ currentView }: StepIndicatorProps) {
-  const currentIdx = STEPS.findIndex((s) => s.id === currentView);
+  // Map text-results to results for indicator highlighting
+  const activeView = currentView === 'text-results' ? 'results' : currentView;
+  const currentIdx = STEPS.findIndex((s) => s.id === activeView);
+
+  if (currentView === 'landing') return null;
 
   return (
     <div className="hidden items-center gap-2 md:flex">
@@ -25,7 +29,7 @@ export function StepIndicator({ currentView }: StepIndicatorProps) {
             <div
               className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-mono transition-colors ${
                 isCurrent
-                  ? "bg-brand text-white"
+                  ? "bg-brand text-white shadow-[0_0_8px_rgba(37,99,235,0.3)]"
                   : isComplete
                     ? "bg-low/20 text-low"
                     : "bg-surface-2 text-text-dim"
@@ -34,7 +38,7 @@ export function StepIndicator({ currentView }: StepIndicatorProps) {
               {isComplete ? <Check size={12} strokeWidth={3} /> : idx + 1}
             </div>
             <span
-              className={`text-xs font-medium ${
+              className={`text-xs font-medium transition-colors ${
                 isCurrent
                   ? "text-text-primary"
                   : isComplete

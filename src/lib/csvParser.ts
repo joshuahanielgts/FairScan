@@ -12,14 +12,20 @@ export function parseCSV(file: File): Promise<{ rows: CSVRow[], headers: string[
           reject(new Error(`Failed to parse CSV: ${results.errors[0].message}`));
           return;
         }
-        if (results.data.length === 0) {
-          reject(new Error("Dataset is empty."));
+        
+        const rows = results.data as CSVRow[];
+        const headers = results.meta.fields || [];
+
+        if (rows.length < 10) {
+          reject(new Error("Dataset too small — need at least 10 rows to compute fairness metrics."));
           return;
         }
-        resolve({
-          rows: results.data as CSVRow[],
-          headers: results.meta.fields || []
-        });
+        if (headers.length < 2) {
+          reject(new Error("CSV must have at least 2 columns."));
+          return;
+        }
+
+        resolve({ rows, headers });
       },
       error: (error) => {
         reject(error);

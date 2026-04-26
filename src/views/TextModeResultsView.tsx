@@ -1,4 +1,4 @@
-import { AlertTriangle, RotateCcw, ShieldAlert, Wrench } from "lucide-react";
+import { AlertTriangle, RotateCcw, ShieldAlert, Wrench, ArrowLeft } from "lucide-react";
 import type { TextModeResult } from "@/types";
 import { RiskBadge } from "@/components/RiskBadge";
 import { FixCard } from "@/components/FixCard";
@@ -10,7 +10,7 @@ interface TextModeResultsViewProps {
 
 export function TextModeResultsView({ result, onNewAudit }: TextModeResultsViewProps) {
   return (
-    <div className="pb-24">
+    <div className="pb-24 animate-fade-in">
       {/* Top summary bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-8 py-5">
         <div className="font-mono text-[12px] text-text-secondary">
@@ -50,7 +50,7 @@ export function TextModeResultsView({ result, onNewAudit }: TextModeResultsViewP
 
             <div className="flex-1 w-full bg-surface-2 border border-border p-5 rounded-xl">
               <div className="text-[12px] uppercase tracking-wider text-text-dim mb-3">Model Description Analyzed</div>
-              <div className="text-[13px] text-text-primary font-mono line-clamp-4">
+              <div className="text-[13px] text-text-primary font-mono line-clamp-4 italic">
                 "{result.modelDescription}"
               </div>
             </div>
@@ -120,7 +120,7 @@ export function TextModeResultsView({ result, onNewAudit }: TextModeResultsViewP
               <div className="space-y-3 mt-4">
                 {result.biasTypeMap.length > 0 ? (
                   result.biasTypeMap.map((bt, i) => (
-                    <div key={i} className="border-l-2 border-brand bg-surface-2 p-3 rounded-r-md">
+                    <div key={i} className="border-l-2 border-brand bg-surface-2 p-3 rounded-r-md transition-colors hover:bg-brand-glow/5">
                       <div className="text-[13px] font-medium text-text-primary mb-1">{bt.type}</div>
                       <div className="text-[13px] text-text-secondary">{bt.description}</div>
                     </div>
@@ -140,8 +140,8 @@ export function TextModeResultsView({ result, onNewAudit }: TextModeResultsViewP
               </div>
               <div className="space-y-2 mt-4">
                 {result.recommendations.length > 0 ? (
-                  result.recommendations.map((f: any, i: number) => (
-                    <FixCard key={i} fix={{ id: `fix-${i}`, number: `${i+1}`.padStart(2, '0'), ...f, tags: f.tags.map((t: string) => ({ label: t, tone: "blue" })) }} />
+                  result.recommendations.slice(0, 3).map((f, i) => (
+                    <FixCard key={i} fix={f} index={i} />
                   ))
                 ) : (
                   <div className="text-sm text-text-dim">No specific recommendations provided.</div>
@@ -149,6 +149,16 @@ export function TextModeResultsView({ result, onNewAudit }: TextModeResultsViewP
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-12 flex justify-center">
+           <button
+            onClick={onNewAudit}
+            className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-[15px] font-medium text-white transition-opacity hover:opacity-90"
+          >
+            <ArrowLeft size={18} />
+            Start New Audit
+          </button>
         </div>
       </div>
     </div>

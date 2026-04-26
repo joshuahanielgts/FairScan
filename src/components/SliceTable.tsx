@@ -46,13 +46,13 @@ export function SliceTable({
                   </span>
                 </td>
                 <td className="px-4 py-3 text-[13px] text-text-secondary">
-                  {s.worstMetric.metricName}
+                  {s.worstMetric.metricName.replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-[13px] text-text-primary">
-                  {s.worstMetric.value.toFixed(2)}
+                  {s.worstMetric.value.toFixed(3)}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-text-dim">
-                  {s.worstMetric.metricName === 'disparate_impact' ? '0.8-1.25' : `< ${s.worstMetric.threshold}`}
+                  {s.worstMetric.threshold.toString()}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <RiskBadge severity={s.severity} />

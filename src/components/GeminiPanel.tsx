@@ -1,29 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Brain, ChevronDown, ChevronRight, ArrowRight } from "lucide-react";
-import type { Explanation } from "@/types";
+import type { BiasSlice } from "@/types";
 
 interface GeminiPanelProps {
-  explanations: Explanation[];
+  slices: BiasSlice[];
   totalCount: number;
   highlightedSliceId: string | null;
 }
 
 export function GeminiPanel({
-  explanations,
+  slices: allSlices,
   totalCount,
   highlightedSliceId,
 }: GeminiPanelProps) {
-  const [openIds, setOpenIds] = useState<Set<string>>(
-    new Set(explanations[0] ? [explanations[0].id] : []),
+  // Only show slices that have explanations
+  const slices = allSlices.filter(s => s.explanation);
+  
+  const [openId, setOpenId] = useState<string | null>(
+    highlightedSliceId || (slices[0] ? slices[0].id : null),
   );
 
+  useEffect(() => {
+    if (highlightedSliceId) {
+      setOpenId(highlightedSliceId);
+    }
+  }, [highlightedSliceId]);
+
   const toggle = (id: string) => {
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setOpenId(prev => (prev === id ? null : id));
   };
 
   return (
@@ -39,12 +43,12 @@ export function GeminiPanel({
       </div>
 
       <div className="space-y-2">
-        {explanations.map((e) => {
-          const open = openIds.has(e.id);
-          const highlighted = highlightedSliceId === e.sliceId;
+        {slices.map((s) => {
+          const open = openId === s.id;
+          const highlighted = highlightedSliceId === s.id;
           return (
             <div
-              key={e.id}
+              key={s.id}
               className={`overflow-hidden rounded-lg border transition-all ${
                 highlighted
                   ? "border-brand bg-brand-glow"
@@ -53,15 +57,15 @@ export function GeminiPanel({
             >
               <button
                 type="button"
-                onClick={() => toggle(e.id)}
+                onClick={() => toggle(s.id)}
                 className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-brand/40 bg-brand-glow px-2 py-0.5 text-[11px] font-medium text-brand">
-                    {e.sliceLabel}
+                    {s.groupLabel}
                   </span>
-                  <span className="rounded-full border border-border-2 bg-surface px-2 py-0.5 text-[11px] text-text-secondary">
-                    {e.biasType}
+                  <span className="rounded-full border border-border-2 bg-surface px-2 py-0.5 text-[11px] text-text-secondary capitalize">
+                    {s.biasType || 'analysis'}
                   </span>
                 </div>
                 {open ? (
@@ -78,7 +82,7 @@ export function GeminiPanel({
               >
                 <div className="overflow-hidden">
                   <p className="px-3 pb-3 text-[13px] leading-relaxed text-text-secondary">
-                    {e.text}
+                    {s.explanation}
                   </p>
                 </div>
               </div>

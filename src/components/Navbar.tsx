@@ -3,7 +3,7 @@ import type { AppView } from "@/types";
 import { StepIndicator } from "./StepIndicator";
 
 interface NavbarProps {
-  currentView: AppView | "textResults";
+  currentView: AppView;
   onNewAudit: () => void;
 }
 

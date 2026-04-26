@@ -1,18 +1,29 @@
-# Implementation Notes
+# FairScan — Implementation Notes
 
-## Current Shape of Types (from `src/types.ts`)
-- **ScanResult**: `{ fileName, rowCount, columnCount, fileSize, sensitiveAttributeCount, fairScanScore, metrics, severityCounts, slices, explanations, fixes, impactStory }`
-- **BiasSlice**: `{ id, slice, metric, value, threshold, severity, intersectional }`
-- **DatasetColumn**: `{ name, sampleValues, dataType, role, autoDetected }`
+## Audit Findings (Task 0)
 
-## ResultsView Props
-`ResultsView` currently expects:
-`{ onNewAudit: () => void }`
+### Current Duplicate Type Names in types.ts
+- `BiasSlice`: Defined at line 15 (flat) and line 109 (nested).
+- `FixRecommendation`: Defined at line 39 and line 126.
+- `ScanResult`: Defined at line 47 and line 134.
+- `AppView`: Defined at line 62.
+- `Severity`: Defined at line 1.
+- `ColumnRole`: Defined at line 3.
+- `DataType`: Defined at line 5.
 
-## mockData.ts Exports
-- `mockColumns: DatasetColumn[]`
-- `mockSlices: BiasSlice[]`
-- `mockMetrics: MetricSummary[]`
-- `mockExplanations: Explanation[]`
-- `mockFixes: FixRecommendation[]`
-- `mockScanResult: ScanResult`
+### Current Gemini Model String
+- `geminiClient.ts`: `gemini-2.5-flash` (line 19)
+
+### View/Route Management
+- Managed via `useState` in `src/routes/index.tsx`.
+- Current view state type: `AppView | "textResults"`.
+
+### ScanResult Shape Expected by ResultsView
+- `fairscanScore` (derived from `slices`)
+- `riskLevel`
+- `slices` (nested with `metrics[]`, `worstMetric`, `groupStats`)
+- `overallStats` (`criticalCount`, `highCount`, `mediumCount`, `lowCount`, `totalSlices`)
+- `geminiAnalysisComplete`
+- `filename`, `rowCount`, `sensitiveColumns`
+
+---

@@ -15,57 +15,80 @@ export interface GeminiSliceAnalysis {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callGemini(prompt: string, systemInstruction: string, retries = 1): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`;
-  
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json'
+// Try these model IDs in order — first one that works will be used
+const GEMINI_MODELS = [
+  "gemini-2.5-flash-preview-05-20",
+  "gemini-2.5-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",           // guaranteed fallback
+  "gemini-2.0-flash-lite",      // ultra-light fallback
+];
+
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
+async function callGeminiWithFallback(
+  prompt: string,
+  systemInstruction: string
+): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_KEY_MISSING");
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(
+        `${BASE_URL}/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemInstruction }],
+            },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+            },
+          }),
         }
-      })
-    });
+      );
 
-    if (res.status === 429) {
-      throw new Error('RATE_LIMITED');
-    }
-
-    if (!res.ok) {
-      throw new Error(`Gemini API error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    return data.candidates[0].content.parts[0].text;
-  } catch (err: any) {
-    if (err.message === 'RATE_LIMITED' && retries > 0) {
-      console.warn('Rate limited, retrying in 65s...');
-      await wait(65000);
-      return callGemini(prompt, systemInstruction, retries - 1);
-    } else if (retries > 0 && err.message !== 'RATE_LIMITED') {
-      console.warn(`Error calling Gemini (${err.message}), retrying in 1s...`);
-      await wait(1000);
-      try {
-        return await callGemini(prompt, systemInstruction, retries - 1);
-      } catch (err2: any) {
-        if (err2.message !== 'RATE_LIMITED') {
-          console.warn(`Error calling Gemini again, retrying in 2s...`);
-          await wait(2000);
-          return callGemini(prompt, systemInstruction, 0);
-        }
-        throw err2;
+      if (res.status === 404 || res.status === 400) {
+        // Model not available, try next
+        console.warn(`Model ${model} not available (${res.status}), trying next...`);
+        continue;
       }
+
+      if (res.status === 403) {
+        // API key issue — throw immediately, no point trying other models
+        throw new Error("GEMINI_403: API key invalid or Generative AI API not enabled. Go to https://aistudio.google.com/app/apikey and verify your key.");
+      }
+
+      if (res.status === 429) {
+        throw new Error("RATE_LIMITED");
+      }
+
+      if (!res.ok) {
+        throw new Error(`Gemini API error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("Empty Gemini response");
+      return text;
+    } catch (err: unknown) {
+      if (err instanceof Error &&
+          (err.message === "RATE_LIMITED" ||
+           err.message.startsWith("GEMINI_403") ||
+           err.message === "GEMINI_KEY_MISSING")) {
+        throw err; // Re-throw fatal errors
+      }
+      // Network error or model-specific error — try next model
+      console.warn(`Model ${model} failed:`, err);
     }
-    
-    console.error('Gemini API Error:', err);
-    throw err;
   }
+  throw new Error("All Gemini models failed. Check your API key at https://aistudio.google.com/app/apikey");
 }
 
 function parseJSONSafely<T>(text: string): T {
@@ -90,7 +113,7 @@ Return JSON:
   "positiveLabel": "1"
 }`;
 
-  const text = await callGemini(prompt, systemInstruction);
+  const text = await callGeminiWithFallback(prompt, systemInstruction);
   return parseJSONSafely<{ sensitiveColumns: string[], outcomeColumn: string, positiveLabel: string }>(text);
 }
 
@@ -128,7 +151,7 @@ Return exactly this JSON structure:
   }
 ]`;
 
-    const text = await callGemini(prompt, systemInstruction);
+    const text = await callGeminiWithFallback(prompt, systemInstruction);
     const parsed = parseJSONSafely<GeminiSliceAnalysis[]>(text);
     results.push(...parsed);
   }
@@ -153,7 +176,7 @@ Return exactly this JSON structure:
   ]
 }`;
 
-  const text = await callGemini(prompt, systemInstruction);
+  const text = await callGeminiWithFallback(prompt, systemInstruction);
   const data = parseJSONSafely<any>(text);
   
   return {

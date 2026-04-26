@@ -1,8 +1,12 @@
-import type { MetricSummary } from "@/types";
 import { RiskBadge } from "./RiskBadge";
+import type { Severity } from "@/types";
 
 interface MetricCardProps {
-  metric: MetricSummary;
+  metric: {
+    label: string;
+    value: number;
+    severity: Severity;
+  };
 }
 
 export function MetricCard({ metric }: MetricCardProps) {
@@ -13,17 +17,9 @@ export function MetricCard({ metric }: MetricCardProps) {
           {metric.label}
         </div>
         <div
-          className={`font-mono text-[18px] font-bold leading-tight text-${
-            metric.severity === "critical"
-              ? "critical"
-              : metric.severity === "high"
-                ? "high"
-                : metric.severity === "medium"
-                  ? "medium"
-                  : "low"
-          }`}
+          className={`font-mono text-[18px] font-bold leading-tight text-${metric.severity}`}
         >
-          {metric.value.toFixed(2)}
+          {metric.value.toFixed(3)}
         </div>
       </div>
       <RiskBadge severity={metric.severity} />
