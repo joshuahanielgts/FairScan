@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Zap } from "lucide-react";
-import { mockColumns } from "@/data/mockData";
-import type { ColumnRole, DatasetColumn } from "@/types";
+import type { ColumnRole, ColumnMeta } from "@/types";
 
 interface ConfigureViewProps {
+  columns: ColumnMeta[];
   onBack: () => void;
-  onRunScan: () => void;
+  onBack: () => void;
+  onRunScan: (overrides: { name: string; role: ColumnRole }[], wantsEmail: boolean, emailInput: string) => void;
 }
 
 const ROLE_LABEL: Record<ColumnRole, string> = {
@@ -20,8 +21,14 @@ const ROLE_INDICATOR: Record<ColumnRole, string> = {
   ignore: "bg-text-dim",
 };
 
-export function ConfigureView({ onBack, onRunScan }: ConfigureViewProps) {
-  const [columns, setColumns] = useState<DatasetColumn[]>(mockColumns);
+export function ConfigureView({ columns: initialColumns, onBack, onRunScan }: ConfigureViewProps) {
+  const [columns, setColumns] = useState<ColumnMeta[]>(initialColumns);
+  const [wantsSummaryEmail, setWantsSummaryEmail] = useState(false);
+  const [summaryEmailInput, setSummaryEmailInput] = useState('');
+
+  useEffect(() => {
+    setColumns(initialColumns);
+  }, [initialColumns]);
 
   const setRole = (name: string, role: ColumnRole) => {
     setColumns((prev) =>
@@ -29,28 +36,23 @@ export function ConfigureView({ onBack, onRunScan }: ConfigureViewProps) {
     );
   };
 
+  const handleRunScan = () => {
+    const overrides = columns.map(c => ({ name: c.name, role: c.role }));
+    onRunScan(overrides, wantsSummaryEmail, summaryEmailInput);
+  };
+
+  const outcomeColumnsCount = columns.filter(c => c.role === 'outcome').length;
+  const canRunScan = outcomeColumnsCount === 1;
+
   return (
     <div className="mx-auto max-w-[1080px] px-6 pb-24 pt-12">
       <h1 className="font-display text-[36px] leading-tight text-text-primary">
         Configure your audit
       </h1>
       <p className="mt-2 text-sm text-text-secondary">
-        FairScan detected 14 columns. Confirm which represent sensitive
+        FairScan detected {columns.length} columns. Confirm which represent sensitive
         attributes and which is the outcome.
       </p>
-
-      <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-surface-2 px-5 py-4 text-[13px]">
-        <div className="flex items-center gap-2">
-          <span>📄</span>
-          <span className="text-text-primary">adult_income.csv</span>
-        </div>
-        <div className="text-text-dim">|</div>
-        <span className="font-mono text-text-secondary">48,842 rows</span>
-        <div className="text-text-dim">|</div>
-        <span className="font-mono text-text-secondary">14 columns</span>
-        <div className="text-text-dim">|</div>
-        <span className="font-mono text-text-secondary">2.3 MB</span>
-      </div>
 
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-surface">
         <table className="w-full">
@@ -66,22 +68,22 @@ export function ConfigureView({ onBack, onRunScan }: ConfigureViewProps) {
             {columns.map((col, i) => (
               <tr
                 key={col.name}
-                className={`h-14 ${i < columns.length - 1 ? "border-b border-border" : ""}`}
+                className={`h-14 ${i < columns.length - 1 ? "border-b border-border" : ""} ${col.role === 'outcome' ? "bg-low/5" : ""}`}
               >
                 <td className="px-5 py-3 text-[13px] font-medium text-text-primary">
                   {col.name}
                 </td>
                 <td className="px-5 py-3 font-mono text-[12px] text-text-secondary">
-                  {col.sampleValues}
+                  {col.sampleValues.join(', ')}
                 </td>
                 <td className="px-5 py-3">
                   <span className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-[11px] text-text-secondary">
-                    {col.dataType}
+                    {col.type}
                   </span>
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
-                    {col.autoDetected && (
+                    {col.isAutoDetectedSensitive && col.role === 'sensitive' && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand-glow px-2 py-0.5 text-[11px] font-medium text-brand">
                         <Zap size={10} className="fill-brand" />
                         Auto-detected
@@ -110,12 +112,45 @@ export function ConfigureView({ onBack, onRunScan }: ConfigureViewProps) {
         </button>
         <button
           type="button"
-          onClick={onRunScan}
-          className="inline-flex h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-brand text-[16px] font-medium text-white transition-opacity hover:opacity-90"
+          onClick={handleRunScan}
+          disabled={!canRunScan}
+          className={`inline-flex h-[52px] flex-1 items-center justify-center gap-2 rounded-xl text-[16px] font-medium transition-opacity ${
+            canRunScan ? "bg-brand text-white hover:opacity-90" : "bg-surface-2 text-text-dim cursor-not-allowed"
+          }`}
         >
-          Run Fairness Scan
+          {canRunScan ? "Run Fairness Scan" : "Select exactly 1 Outcome Column"}
           <ArrowRight size={16} />
         </button>
+      </div>
+
+      <div className="mt-6 flex flex-col items-center">
+        <label style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', cursor:'pointer' }}>
+          <input
+            type="checkbox"
+            checked={wantsSummaryEmail}
+            onChange={e => setWantsSummaryEmail(e.target.checked)}
+            style={{ width:'16px', height:'16px', accentColor:'var(--color-brand)' }}
+          />
+          <span style={{ fontSize:'13px', color:'var(--color-text-secondary)' }}>
+            Email me a summary when the scan completes
+          </span>
+        </label>
+
+        {wantsSummaryEmail && (
+          <input
+            type="email"
+            placeholder="your@email.com"
+            value={summaryEmailInput}
+            onChange={e => setSummaryEmailInput(e.target.value)}
+            style={{
+              marginTop:'10px', width:'100%', maxWidth:'400px', padding:'11px 14px',
+              borderRadius:'10px', background:'var(--color-surface-2)',
+              border:'1px solid var(--color-border-2)',
+              color:'var(--color-text-primary)', fontSize:'13px',
+              outline:'none', boxSizing:'border-box'
+            }}
+          />
+        )}
       </div>
     </div>
   );

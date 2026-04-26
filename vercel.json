@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/send-report.ts": {
+      "runtime": "edge"
+    }
+  }
+}

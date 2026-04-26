@@ -39,20 +39,20 @@ export function SliceTable({
               >
                 <td className="px-4 py-3">
                   <span className="text-[13px] font-medium text-text-primary">
-                    {s.intersectional && (
+                    {s.isIntersectional && (
                       <span className="mr-1.5 text-text-dim">∩</span>
                     )}
-                    {s.slice}
+                    {s.groupLabel}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-[13px] text-text-secondary">
-                  {s.metric}
+                  {s.worstMetric.metricName}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-[13px] text-text-primary">
-                  {s.value.toFixed(2)}
+                  {s.worstMetric.value.toFixed(2)}
                 </td>
                 <td className="px-4 py-3 font-mono text-[12px] text-text-dim">
-                  {s.threshold}
+                  {s.worstMetric.metricName === 'disparate_impact' ? '0.8-1.25' : `< ${s.worstMetric.threshold}`}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <RiskBadge severity={s.severity} />

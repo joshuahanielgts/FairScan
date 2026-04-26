@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AlertTriangle,
   FileDown,
   RotateCcw,
   ShieldAlert,
   Wrench,
+  Mail,
+  X
 } from "lucide-react";
-import { mockScanResult } from "@/data/mockData";
 import { MetricCard } from "@/components/MetricCard";
 import { SliceTable } from "@/components/SliceTable";
 import { RiskDonut } from "@/components/RiskDonut";
@@ -14,56 +15,158 @@ import { OutcomeRatesChart } from "@/components/OutcomeRatesChart";
 import { ChartPlaceholder } from "@/components/ChartPlaceholder";
 import { GeminiPanel } from "@/components/GeminiPanel";
 import { FixCard } from "@/components/FixCard";
-import { ExportPanel } from "@/components/ExportPanel";
-import type { BiasSlice } from "@/types";
+import { exportReport } from "@/lib/exportReport";
+import { emailReport } from "@/lib/emailReport";
+import type { ScanResult, BiasSlice, Explanation } from "@/types";
 
 interface ResultsViewProps {
+  scanResult: ScanResult;
   onNewAudit: () => void;
 }
 
 type ChartTab = "outcome" | "fpr" | "intersectional" | "representation";
 
-export function ResultsView({ onNewAudit }: ResultsViewProps) {
-  const r = mockScanResult;
+export function ResultsView({ scanResult: r, onNewAudit }: ResultsViewProps) {
   const [chartTab, setChartTab] = useState<ChartTab>("outcome");
+  
+  // Create explanations array from slices for GeminiPanel
+  const explanations = useMemo(() => {
+    return r.slices
+      .filter(s => s.explanation)
+      .map(s => ({
+        id: s.id,
+        sliceId: s.id,
+        sliceLabel: s.groupLabel,
+        biasType: s.biasType || 'measurement',
+        text: s.explanation!
+      }));
+  }, [r.slices]);
+
   const [activeSliceId, setActiveSliceId] = useState<string | null>(
-    r.explanations[0]?.sliceId ?? null,
+    explanations[0]?.sliceId ?? null,
   );
-  const [exportOpen, setExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailInput, setEmailInput]         = useState('');
+  const [emailStatus, setEmailStatus]       = useState<'idle'|'sending'|'sent'|'error'>('idle');
+  const [emailError, setEmailError]         = useState('');
+
+  const handleDownloadPDF = async () => {
+    setIsExporting(true);
+    try {
+      await exportReport(r);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleEmailReport = async () => {
+    if (!emailInput || !r) return;
+    setEmailStatus('sending');
+
+    try {
+      // Step 1: Generate PDF and get base64
+      const pdfBase64 = await exportReport(r);
+
+      // Step 2: Send email with PDF attached
+      const result = await emailReport({
+        to: emailInput,
+        scanResult: r,
+        pdfBase64,
+        mode: 'full',
+      });
+
+      if (result.success) {
+        setEmailStatus('sent');
+      } else {
+        setEmailStatus('error');
+        setEmailError(result.error ?? 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setEmailStatus('error');
+      setEmailError('Failed to generate PDF. Please try downloading first.');
+    }
+  };
 
   const handleSelectSlice = (slice: BiasSlice) => {
     setActiveSliceId(slice.id);
-    // Scroll Gemini panel into view
     document
       .getElementById("gemini-panel")
       ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
   const scoreColor =
-    r.fairScanScore < 40
+    r.fairscanScore < 40
       ? "text-critical"
-      : r.fairScanScore < 60
+      : r.fairscanScore < 60
         ? "text-high"
-        : r.fairScanScore < 80
+        : r.fairscanScore < 80
           ? "text-medium"
           : "text-low";
 
   const barColor =
-    r.fairScanScore < 40
+    r.fairscanScore < 40
       ? "bg-critical"
-      : r.fairScanScore < 60
+      : r.fairscanScore < 60
         ? "bg-high"
-        : r.fairScanScore < 80
+        : r.fairscanScore < 80
           ? "bg-medium"
           : "bg-low";
+
+  // Derive mini metric cards from slices (worst across all slices)
+  const metrics = useMemo(() => {
+    let worstDi = 1;
+    let worstDp = 0;
+    let worstRep = 0;
+    for (const s of r.slices) {
+      for (const m of s.metrics) {
+        if (m.metricName === 'disparate_impact') {
+          if (Math.abs(1 - m.value) > Math.abs(1 - worstDi)) worstDi = m.value;
+        } else if (m.metricName === 'demographic_parity_gap') {
+          if (m.value > worstDp) worstDp = m.value;
+        } else if (m.metricName === 'representation_imbalance') {
+          if (m.value > worstRep) worstRep = m.value;
+        }
+      }
+    }
+    return [
+      { label: "Disparate Impact", value: worstDi, severity: r.riskLevel },
+      { label: "Demographic Parity Gap", value: worstDp, severity: r.riskLevel },
+      { label: "Representation Imbalance", value: worstRep, severity: r.riskLevel },
+    ];
+  }, [r.slices, r.riskLevel]);
+
+  // Extract fixes from slices
+  const fixes = useMemo(() => {
+    const allFixes = r.slices.flatMap(s => s.fixes || []);
+    // deduplicate
+    const map = new Map();
+    for (const f of allFixes) {
+      if (!map.has(f.title)) {
+        map.set(f.title, { id: crypto.randomUUID(), number: `${map.size + 1}`.padStart(2, '0'), ...f });
+      }
+    }
+    return Array.from(map.values()).slice(0, 3); // top 3
+  }, [r.slices]);
+
+  const impactStory = r.slices[0]?.impactStory || "No impact story generated.";
+
+  const severityCounts = {
+    critical: r.overallStats.criticalCount,
+    high: r.overallStats.highCount,
+    medium: r.overallStats.mediumCount,
+    low: r.overallStats.lowCount,
+  };
 
   return (
     <div className="pb-24">
       {/* Top summary bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-8 py-5">
         <div className="font-mono text-[12px] text-text-secondary">
-          {r.fileName} · {r.rowCount.toLocaleString()} rows ·{" "}
-          {r.sensitiveAttributeCount} sensitive attributes · Scanned just now
+          {r.filename} · {r.rowCount.toLocaleString()} rows ·{" "}
+          {r.sensitiveColumns.length} sensitive attributes · Scanned just now
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -76,11 +179,20 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
           </button>
           <button
             type="button"
-            onClick={() => setExportOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            onClick={handleDownloadPDF}
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <FileDown size={12} />
-            Export PDF Report
+            {isExporting ? "Preparing PDF..." : "Download PDF"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEmailStatus('idle'); setEmailModalOpen(true); }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border-2 bg-surface px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:border-brand"
+          >
+            <Mail size={12} />
+            Email Report
           </button>
         </div>
       </div>
@@ -98,24 +210,24 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
                 <span
                   className={`font-display text-[96px] leading-none ${scoreColor}`}
                 >
-                  {r.fairScanScore}
+                  {r.fairscanScore}
                 </span>
                 <span className="text-[20px] text-text-secondary">/100</span>
               </div>
               <div className="mt-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full border-l-[3px] border-l-high bg-high-tint px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-high">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border-l-[3px] px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide border-l-${r.riskLevel} bg-${r.riskLevel}-tint text-${r.riskLevel}`}>
                   <ShieldAlert size={12} strokeWidth={2.25} />
-                  High Risk
+                  {r.riskLevel} Risk
                 </span>
               </div>
               <div className="relative mt-6 h-1.5 w-full rounded-full bg-surface-2">
                 <div
                   className={`absolute left-0 top-0 h-full rounded-full ${barColor}`}
-                  style={{ width: `${r.fairScanScore}%` }}
+                  style={{ width: `${r.fairscanScore}%` }}
                 />
                 <div
                   className="absolute -top-1 h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-bg bg-text-primary"
-                  style={{ left: `${r.fairScanScore}%` }}
+                  style={{ left: `${r.fairscanScore}%` }}
                 />
               </div>
               <div className="mt-2 flex justify-between font-mono text-[10px] text-text-dim">
@@ -129,17 +241,17 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
 
             {/* Mini metric cards */}
             <div className="space-y-2.5">
-              {r.metrics.map((m) => (
-                <MetricCard key={m.label} metric={m} />
+              {metrics.map((m) => (
+                <MetricCard key={m.label} metric={m as any} />
               ))}
             </div>
 
             {/* Donut */}
             <div className="flex flex-col items-center justify-center gap-3">
-              <RiskDonut counts={r.severityCounts} />
+              <RiskDonut counts={severityCounts} />
               <div className="text-center text-[13px] text-text-secondary">
-                7 slices flagged across
-                <br />3 sensitive attributes
+                {r.overallStats.totalSlices} slices flagged across
+                <br />{r.sensitiveColumns.length} sensitive attributes
               </div>
             </div>
           </div>
@@ -160,7 +272,7 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
                 </span>
               </div>
               <SliceTable
-                slices={r.slices}
+                slices={r.slices as any} // mapping in SliceTable needed
                 activeSliceId={activeSliceId}
                 onSelectSlice={handleSelectSlice}
               />
@@ -194,13 +306,13 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
                 />
               </div>
               <div className="mt-4">
-                {chartTab === "outcome" && <OutcomeRatesChart />}
+                {chartTab === "outcome" && <OutcomeRatesChart scanResult={r} type="outcome" />}
                 {chartTab === "fpr" && <ChartPlaceholder kind="fpr" />}
                 {chartTab === "intersectional" && (
-                  <ChartPlaceholder kind="intersectional" />
+                  <ChartPlaceholder kind="intersectional" /> // TODO: plot.ly implementation later
                 )}
                 {chartTab === "representation" && (
-                  <ChartPlaceholder kind="representation" />
+                  <OutcomeRatesChart scanResult={r} type="representation" />
                 )}
               </div>
             </div>
@@ -209,11 +321,19 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
           {/* RIGHT */}
           <div className="space-y-6">
             <div id="gemini-panel">
-              <GeminiPanel
-                explanations={r.explanations}
-                totalCount={r.slices.length}
-                highlightedSliceId={activeSliceId}
-              />
+              {!r.geminiAnalysisComplete ? (
+                 <div className="rounded-xl border border-border bg-surface p-5 card-glow animate-pulse">
+                   <div className="h-6 w-1/2 bg-surface-2 mb-4 rounded"></div>
+                   <div className="h-24 w-full bg-surface-2 rounded-lg"></div>
+                   <div className="text-[12px] text-text-secondary mt-2">Gemini analysis loading...</div>
+                 </div>
+              ) : (
+                <GeminiPanel
+                  explanations={explanations as any}
+                  totalCount={r.slices.length}
+                  highlightedSliceId={activeSliceId}
+                />
+              )}
             </div>
 
             {/* Fix recommendations */}
@@ -225,9 +345,13 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
                 </h3>
               </div>
               <div className="space-y-2">
-                {r.fixes.map((f) => (
-                  <FixCard key={f.id} fix={f} />
-                ))}
+                {!r.geminiAnalysisComplete ? (
+                  <div className="h-32 w-full bg-surface-2 animate-pulse rounded-lg"></div>
+                ) : (
+                  fixes.map((f: any) => (
+                    <FixCard key={f.id} fix={{...f, tags: f.tags.map((t: string) => ({ label: t, tone: "blue" }))}} />
+                  ))
+                )}
               </div>
             </div>
 
@@ -241,7 +365,7 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
               </div>
               <blockquote className="rounded-r-xl border-l-[3px] border-medium bg-surface-2 p-4">
                 <p className="font-display text-[15px] italic leading-relaxed text-text-secondary">
-                  “{r.impactStory}”
+                  “{!r.geminiAnalysisComplete ? "Waiting for Gemini analysis..." : impactStory}”
                 </p>
               </blockquote>
               <p className="mt-2 text-[11px] text-text-dim">
@@ -253,11 +377,109 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
         </div>
       </div>
 
-      <ExportPanel
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        result={r}
-      />
+      {emailModalOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 50, backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: '16px', padding: '28px 32px', width: '100%', maxWidth: '420px'
+          }}>
+
+            {/* Header */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+              <h3 style={{ margin:0, fontSize:'17px', fontWeight:600, color:'var(--color-text-primary)' }}>
+                Email Report
+              </h3>
+              <button onClick={() => { setEmailModalOpen(false); setEmailStatus('idle'); }} className="text-text-secondary hover:text-text-primary">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Score summary inside modal */}
+            <div style={{
+              background:'var(--color-surface-2)', borderRadius:'10px',
+              padding:'14px 16px', marginBottom:'20px', display:'flex',
+              justifyContent:'space-between', alignItems:'center'
+            }}>
+              <span style={{ color:'var(--color-text-secondary)', fontSize:'13px' }}>
+                {r.filename}
+              </span>
+              <span style={{ fontFamily:'monospace', fontSize:'16px', fontWeight:700 }} className={scoreColor}>
+                {r.fairscanScore}/100
+              </span>
+            </div>
+
+            {/* Email input */}
+            {emailStatus !== 'sent' && (
+              <>
+                <label style={{ display:'block', fontSize:'13px',
+                  color:'var(--color-text-secondary)', marginBottom:'8px' }}>
+                  Send to
+                </label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={emailInput}
+                  onChange={e => setEmailInput(e.target.value)}
+                  style={{
+                    width:'100%', padding:'12px 14px', borderRadius:'10px',
+                    background:'var(--color-surface-2)', border:'1px solid var(--color-border-2)',
+                    color:'var(--color-text-primary)', fontSize:'14px',
+                    outline:'none', boxSizing:'border-box', marginBottom:'12px'
+                  }}
+                />
+
+                {/* What will be sent note */}
+                <p style={{ margin:'0 0 20px', fontSize:'12px',
+                  color:'var(--color-text-dim)', lineHeight:1.6 }}>
+                  You'll receive the full report with the PDF attached and a summary
+                  of all flagged slices. Your dataset is never included.
+                </p>
+
+                {/* Error message */}
+                {emailStatus === 'error' && (
+                  <p style={{ margin:'0 0 12px', fontSize:'13px', color:'var(--color-critical)' }}>
+                    {emailError}
+                  </p>
+                )}
+
+                {/* Send button */}
+                <button
+                  disabled={emailStatus === 'sending' || !emailInput.includes('@')}
+                  onClick={handleEmailReport}
+                  style={{
+                    width:'100%', padding:'13px', borderRadius:'10px',
+                    background:'var(--color-brand)', color:'#fff', border:'none',
+                    fontSize:'15px', fontWeight:500, cursor:'pointer',
+                    opacity: emailStatus === 'sending' ? 0.7 : 1
+                  }}
+                >
+                  {emailStatus === 'sending' ? 'Generating PDF & sending...' : 'Send Report →'}
+                </button>
+              </>
+            )}
+
+            {/* Success state */}
+            {emailStatus === 'sent' && (
+              <div style={{ textAlign:'center', padding:'20px 0' }}>
+                <div style={{ fontSize:'40px', marginBottom:'12px' }}>✅</div>
+                <p style={{ margin:'0 0 4px', fontSize:'16px', fontWeight:600,
+                  color:'var(--color-text-primary)' }}>
+                  Report sent!
+                </p>
+                <p style={{ margin:0, fontSize:'13px', color:'var(--color-text-secondary)' }}>
+                  Check your inbox at {emailInput}
+                </p>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

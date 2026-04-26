@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- ============================================================
+         PRIMARY META TAGS
+    ============================================================ -->
+    <title>FairScan — AI Bias Auditor for Datasets & Models</title>
+    <meta name="title" content="FairScan — AI Bias Auditor for Datasets & Models" />
+    <meta
+      name="description"
+      content="Upload a CSV dataset and get a scored, explainable fairness audit in under 10 seconds. FairScan detects demographic bias, disparate impact, and representation imbalance — powered by Gemini AI. Zero data uploaded. Free forever."
+    />
+    <meta
+      name="keywords"
+      content="AI bias detection, fairness audit, algorithmic bias, disparate impact, demographic parity, equalized odds, machine learning fairness, bias in AI, ethical AI, responsible AI, Gemini AI, dataset bias checker"
+    />
+    <meta name="author" content="FairScan" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="English" />
+    <meta name="revisit-after" content="7 days" />
+    <meta name="theme-color" content="#0C0F14" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- ============================================================
+         CANONICAL URL — update to your actual deployment URL
+    ============================================================ -->
+    <link rel="canonical" href="https://fairscan.vercel.app" />
+
+    <!-- ============================================================
+         OPEN GRAPH / FACEBOOK
+    ============================================================ -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fairscan.vercel.app" />
+    <meta property="og:site_name" content="FairScan" />
+    <meta property="og:title" content="FairScan — AI Bias Auditor for Datasets & Models" />
+    <meta
+      property="og:description"
+      content="Detect, quantify, and fix bias in your AI datasets in under 10 seconds. FairScan computes fairness metrics across demographic groups and uses Gemini AI to explain what it found in plain English."
+    />
+    <meta property="og:image" content="https://fairscan.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FairScan dashboard showing a bias audit with a FairScan Score of 55/100 and flagged demographic slices" />
+    <meta property="og:locale" content="en_IN" />
+
+    <!-- ============================================================
+         TWITTER / X CARD
+    ============================================================ -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://fairscan.vercel.app" />
+    <meta name="twitter:title" content="FairScan — AI Bias Auditor for Datasets & Models" />
+    <meta
+      name="twitter:description"
+      content="Upload a CSV. Get a scored fairness audit in 10 seconds. Powered by Gemini AI. Zero data uploaded — all computation runs in your browser."
+    />
+    <meta name="twitter:image" content="https://fairscan.vercel.app/og-image.png" />
+    <meta name="twitter:image:alt" content="FairScan bias audit dashboard" />
+    <meta name="twitter:creator" content="@yourtwitterhandle" />
+    <meta name="twitter:site" content="@yourtwitterhandle" />
+
+    <!-- ============================================================
+         GOOGLE / SEARCH
+    ============================================================ -->
+    <meta name="google" content="notranslate" />
+
+    <!-- ============================================================
+         PWA / MOBILE APP META
+    ============================================================ -->
+    <meta name="application-name" content="FairScan" />
+    <meta name="apple-mobile-web-app-title" content="FairScan" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- ============================================================
+         FAVICON & ICONS
+         Generate all sizes at https://realfavicongenerator.net
+    ============================================================ -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#4F8EF7" />
+    <meta name="msapplication-TileColor" content="#0C0F14" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+
+    <!-- ============================================================
+         GOOGLE FONTS
+         DM Serif Display · DM Sans · JetBrains Mono
+    ============================================================ -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ============================================================
+         STRUCTURED DATA — JSON-LD
+         Helps Google understand what FairScan is
+    ============================================================ -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "FairScan",
+        "url": "https://fairscan.vercel.app",
+        "description": "AI-powered bias auditing tool for datasets and machine learning models. Detects demographic bias, disparate impact, and representation imbalance. Powered by Gemini AI.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web Browser",
+        "browserRequirements": "Requires JavaScript. Chrome, Firefox, Safari, or Edge.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Fairness metrics computation (demographic parity, disparate impact, equalized odds)",
+          "Intersectional bias detection",
+          "Gemini AI explanations and fix recommendations",
+          "FairScan composite score (0–100)",
+          "PDF report export",
+          "Zero data upload — browser-side computation only",
+          "Text mode — audit model descriptions and LLM prompts"
+        ],
+        "creator": {
+          "@type": "Person",
+          "name": "FairScan Author"
+        },
+        "keywords": "AI bias, fairness audit, algorithmic fairness, disparate impact, Gemini AI, responsible AI",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "award": "Built for Google Developers Solution Challenge 2026 India — Unbiased AI Decision theme"
+      }
+    </script>
+
+    <!-- ============================================================
+         PERFORMANCE HINTS
+    ============================================================ -->
+    <!-- Preload critical fonts -->
+    <link
+      rel="preload"
+      href="https://fonts.gstatic.com/s/dmsansdisplay/v1/rP2Yp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopxRSwHFU.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <!-- DNS prefetch for external services used at runtime -->
+    <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+
+
+    <!-- Preconnect to Gemini API endpoint -->
+    <link rel="preconnect" href="https://generativelanguage.googleapis.com" />
+
+    <!-- ============================================================
+         SECURITY
+    ============================================================ -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://www.googletagmanager.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        img-src 'self' data: blob: https:;
+        connect-src 'self'
+          https://generativelanguage.googleapis.com;
+        worker-src blob:;
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+      "
+    />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
+
+  </head>
+  <body>
+
+    <!-- ============================================================
+         NO-SCRIPT FALLBACK
+    ============================================================ -->
+    <noscript>
+      <div style="
+        font-family: system-ui, sans-serif;
+        max-width: 480px;
+        margin: 80px auto;
+        padding: 32px;
+        background: #141820;
+        border: 1px solid #252D3D;
+        border-radius: 16px;
+        color: #F0F4FF;
+        text-align: center;
+      ">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style="margin: 0 auto 16px; display: block;">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#4F8EF7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h2 style="margin: 0 0 12px; font-size: 20px;">JavaScript Required</h2>
+        <p style="color: #8A97B0; margin: 0; font-size: 14px; line-height: 1.6;">
+          FairScan runs entirely in your browser to keep your data private.
+          Please enable JavaScript to use the application.
+        </p>
+      </div>
+    </noscript>
+
+    <!-- ============================================================
+         APP ROOT
+    ============================================================ -->
+    <div id="root"></div>
+
+    <!-- ============================================================
+         VITE ENTRY POINT
+    ============================================================ -->
+    <script type="module" src="/src/main.tsx"></script>
+
+  </body>
+</html>

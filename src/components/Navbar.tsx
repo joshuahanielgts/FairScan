@@ -3,7 +3,7 @@ import type { AppView } from "@/types";
 import { StepIndicator } from "./StepIndicator";
 
 interface NavbarProps {
-  currentView: AppView;
+  currentView: AppView | "textResults";
   onNewAudit: () => void;
 }
 
@@ -21,15 +21,19 @@ export function Navbar({ currentView, onNewAudit }: NavbarProps) {
         </span>
       </button>
 
-      <StepIndicator currentView={currentView} />
+      <div className="hidden md:block">
+        <StepIndicator currentView={currentView as AppView} />
+      </div>
 
-      <button
-        type="button"
-        onClick={onNewAudit}
-        className="rounded-md border border-border-2 bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-brand hover:text-text-primary"
-      >
-        New Audit
-      </button>
+      <div className="flex items-center gap-3 relative">
+        <button
+          type="button"
+          onClick={onNewAudit}
+          className="rounded-md border border-border-2 bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-brand hover:text-text-primary"
+        >
+          New Audit
+        </button>
+      </div>
     </header>
   );
 }
