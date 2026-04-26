@@ -11,7 +11,7 @@ interface UploadViewProps {
 
 type UploadTab = "csv" | "model";
 
-const SAMPLES = ["adult_income.csv", "loan_approval.csv", "hiring.csv"];
+const SAMPLES = ["adult_income.csv", "loan_approval.csv", "hiring.csv", "credit_risk_large.csv"];
 
 export function UploadView({ onContinueCSV, onContinueTextMode }: UploadViewProps) {
   const [tab, setTab] = useState<UploadTab>("csv");
