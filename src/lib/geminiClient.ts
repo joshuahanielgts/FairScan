@@ -75,7 +75,18 @@ async function callGeminiWithFallback(
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("Empty Gemini response");
+
+      if (!text || text.trim().length === 0) {
+        console.warn(`Model ${model} returned empty response`);
+        continue; // try next model
+      }
+
+      // If responseMimeType was json but we got HTML (error page), skip
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        console.warn(`Model ${model} returned HTML instead of JSON`);
+        continue;
+      }
+
       return text;
     } catch (err: unknown) {
       if (err instanceof Error &&
@@ -91,11 +102,43 @@ async function callGeminiWithFallback(
   throw new Error("All Gemini models failed. Check your API key at https://aistudio.google.com/app/apikey");
 }
 
-function parseJSONSafely<T>(text: string): T {
+function safeParseJSON<T>(raw: string): T {
+  // Strip markdown code fences if present
+  let cleaned = raw.trim();
+  
+  // Remove ```json ... ``` or ``` ... ```
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  
+  // Also handle cases where JSON is preceded by explanation text
+  // Find the first { or [ and parse from there
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  
+  let startIndex = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+    startIndex = Math.min(firstBrace, firstBracket);
+  } else if (firstBrace !== -1) {
+    startIndex = firstBrace;
+  } else if (firstBracket !== -1) {
+    startIndex = firstBracket;
+  }
+  
+  if (startIndex > 0) {
+    cleaned = cleaned.slice(startIndex);
+  }
+  
+  // Find the matching closing brace/bracket from the end
+  const lastBrace = cleaned.lastIndexOf('}');
+  const lastBracket = cleaned.lastIndexOf(']');
+  const endIndex = Math.max(lastBrace, lastBracket);
+  if (endIndex !== -1 && endIndex < cleaned.length - 1) {
+    cleaned = cleaned.slice(0, endIndex + 1);
+  }
+  
   try {
-    return JSON.parse(text) as T;
+    return JSON.parse(cleaned) as T;
   } catch (err) {
-    console.error("Failed to parse Gemini response as JSON:", text);
+    console.error('safeParseJSON failed. Raw response was:', raw);
     throw new Error('INVALID_RESPONSE');
   }
 }
@@ -114,7 +157,7 @@ Return JSON:
 }`;
 
   const text = await callGeminiWithFallback(prompt, systemInstruction);
-  return parseJSONSafely<{ sensitiveColumns: string[], outcomeColumn: string, positiveLabel: string }>(text);
+  return safeParseJSON<{ sensitiveColumns: string[], outcomeColumn: string, positiveLabel: string }>(text);
 }
 
 export async function analyzeSlices(slices: BiasSlice[], datasetContext: string): Promise<GeminiSliceAnalysis[]> {
@@ -152,7 +195,7 @@ Return exactly this JSON structure:
 ]`;
 
     const text = await callGeminiWithFallback(prompt, systemInstruction);
-    const parsed = parseJSONSafely<GeminiSliceAnalysis[]>(text);
+    const parsed = safeParseJSON<GeminiSliceAnalysis[]>(text);
     results.push(...parsed);
   }
 
@@ -177,7 +220,7 @@ Return exactly this JSON structure:
 }`;
 
   const text = await callGeminiWithFallback(prompt, systemInstruction);
-  const data = parseJSONSafely<any>(text);
+  const data = safeParseJSON<any>(text);
   
   return {
     id: crypto.randomUUID(),
