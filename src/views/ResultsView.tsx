@@ -14,6 +14,7 @@ import { OutcomeRatesChart } from "@/components/OutcomeRatesChart";
 import { ChartPlaceholder } from "@/components/ChartPlaceholder";
 import { GeminiPanel } from "@/components/GeminiPanel";
 import { FixCard } from "@/components/FixCard";
+import { ExportPanel } from "@/components/ExportPanel";
 import type { BiasSlice } from "@/types";
 
 interface ResultsViewProps {
@@ -28,12 +29,7 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
   const [activeSliceId, setActiveSliceId] = useState<string | null>(
     r.explanations[0]?.sliceId ?? null,
   );
-  const [exporting, setExporting] = useState(false);
-
-  const handleExport = () => {
-    setExporting(true);
-    setTimeout(() => setExporting(false), 1500);
-  };
+  const [exportOpen, setExportOpen] = useState(false);
 
   const handleSelectSlice = (slice: BiasSlice) => {
     setActiveSliceId(slice.id);
@@ -80,12 +76,11 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
           </button>
           <button
             type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            onClick={() => setExportOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
           >
             <FileDown size={12} />
-            {exporting ? "Preparing report..." : "Export PDF Report"}
+            Export PDF Report
           </button>
         </div>
       </div>
@@ -257,6 +252,12 @@ export function ResultsView({ onNewAudit }: ResultsViewProps) {
           </div>
         </div>
       </div>
+
+      <ExportPanel
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        result={r}
+      />
     </div>
   );
 }
