@@ -17,15 +17,11 @@ function Index() {
 
   const handleNewAudit = () => setView("upload");
 
-  const showNavbar = view !== "landing" && view !== "scanning";
+  const showNavbar = view !== "landing";
 
   return (
     <div className="min-h-screen bg-bg text-text-primary">
       {showNavbar && (
-        <Navbar currentView={view} onNewAudit={handleNewAudit} />
-      )}
-      {view === "scanning" && (
-        // Minimal navbar still visible during scan? Spec keeps navbar for screens 2-5.
         <Navbar currentView={view} onNewAudit={handleNewAudit} />
       )}
 
