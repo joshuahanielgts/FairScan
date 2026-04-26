@@ -419,7 +419,7 @@ function PdfPage({ page, result }: { page: number; result: ScanResult }) {
                 {e.sliceId}
               </div>
               <p className="text-[11px] leading-relaxed text-[#1a1f2c]">
-                {e.summary}
+                {e.text}
               </p>
             </div>
           ))}
@@ -438,7 +438,7 @@ function PdfPage({ page, result }: { page: number; result: ScanResult }) {
         {result.fixes.slice(0, 5).map((f) => (
           <li key={f.id}>
             <span className="font-medium">{f.title}</span>
-            <div className="text-[11px] text-[#4b5563]">{f.description}</div>
+            <div className="text-[11px] text-[#4b5563]">{f.body}</div>
           </li>
         ))}
       </ol>
